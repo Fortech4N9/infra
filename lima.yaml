@@ -21,7 +21,7 @@ disk: "40GiB"
 # Монтируем корень проекта внутрь VM как writable, чтобы `docker compose up`
 # собирал образы прямо из исходников хоста.
 mounts:
-  - location: "/Users/valerijpetrov/Documents/диплом/diploma-fix"
+  - location: "/Users/valerijpetrov/Documents/диплом/gybryd-analytic"
     writable: true
 
 # cloud-init: ставим Docker Engine + Compose plugin и добавляем пользователя

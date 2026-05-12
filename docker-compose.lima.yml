@@ -1,6 +1,6 @@
 # Override-файл для запуска внутри Lima x86_64 VM. Подключается в `make lima-stack`.
-# Базовый docker-compose.yml остаётся чистым; всё, что нужно ровно для cache-стадии
-# на Apple Silicon (wine + Win64 PE) и для ClickHouse под VM-ядром, живёт здесь.
+# Базовый docker-compose.yml остаётся чистым; всё, что нужно для x86_64 VM
+# на Apple Silicon и для ClickHouse под VM-ядром, живёт здесь.
 services:
   # Под Lima x86_64-VM на Apple Silicon работает QEMU full-system эмуляция,
   # на ней свежий 24.10-alpine падает с двумя проблемами:
@@ -28,8 +28,13 @@ services:
     image: clickhouse/clickhouse-server:24.3
 
   # Дефолтный Docker seccomp-profile режет часть syscalls, которые
-  # использует wine (socket-семейство, ptrace и т.п.) — без этого
-  # CacheSim.exe не стартует.
+  # использует wine (socket-семейство, ptrace и т.п.).
+  worker-static:
+    security_opt:
+      - seccomp:unconfined
+
+  # Оставляем тот же override для cache-воркера: он безвреден для текущего
+  # native cats-бинаря и сохраняет совместимость с wine-based сборками.
   worker-cache:
     security_opt:
       - seccomp:unconfined

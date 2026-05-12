@@ -1,7 +1,7 @@
 DOCKER_COMPOSE := $(shell command -v docker-compose >/dev/null 2>&1 && echo docker-compose || echo docker compose)
 
 LIMA_NAME    ?= diploma-fix
-LIMA_PROJECT := /Users/valerijpetrov/Documents/диплом/diploma-fix
+LIMA_PROJECT := /Users/valerijpetrov/Documents/диплом/gybryd-analytic
 
 .PHONY: help up down restart ps logs rebuild clean clean-all status sample \
         lima-up lima-shell lima-stack lima-down lima-clean lima-status
@@ -98,7 +98,7 @@ lima-shell:
 # Без sg получаем "permission denied while trying to connect to docker.sock".
 lima-stack:
 	@echo "==> Поднимаю docker compose стек внутри VM (с override docker-compose.lima.yml)"
-	@limactl shell $(LIMA_NAME) -- bash -lc 'cd $(LIMA_PROJECT)/diploma-infra && [ -f .env ] || cp .env.example .env && sg docker -c "docker compose --env-file .env -f docker-compose.yml -f docker-compose.lima.yml up -d --build"'
+	@limactl shell $(LIMA_NAME) -- bash -lc 'cd $(LIMA_PROJECT)/infra && [ -f .env ] || cp .env.example .env && sg docker -c "docker compose --env-file .env -f docker-compose.yml -f docker-compose.lima.yml up -d --build"'
 	@echo ""
 	@echo "==> Статус:"
 	@limactl shell $(LIMA_NAME) -- sg docker -c 'docker ps --format "table {{.Names}}\t{{.Status}}"'

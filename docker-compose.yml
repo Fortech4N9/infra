@@ -307,8 +307,8 @@ services:
 
   worker-static:
     build:
-      context: ..
-      dockerfile: static-analysis-worker/Dockerfile
+      context: ../static-analysis-worker
+      dockerfile: Dockerfile
     image: static-analysis-worker:latest
     container_name: worker-static
     platform: linux/amd64
@@ -339,8 +339,8 @@ services:
 
   worker-cache:
     build:
-      context: ..
-      dockerfile: cache-analysis-worker/Dockerfile
+      context: ../cache-analysis-worker
+      dockerfile: Dockerfile
     image: cache-analysis-worker:latest
     container_name: worker-cache
     platform: linux/amd64
