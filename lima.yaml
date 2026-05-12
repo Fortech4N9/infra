@@ -1,0 +1,49 @@
+# Lima x86_64 VM (Ubuntu 22.04). Нужен только на Apple Silicon, когда
+# требуется выполнить cache-стадию пайплайна: CacheSim.exe — это Windows
+# x86_64 PE-бинарь, а wine+qemu-user под Rosetta-эмуляцией Docker Desktop
+# не справляется с этим бинарём (знаменитый ассерт `anon_mmap_fixed`
+# в `dlls/ntdll/unix/virtual.c`).
+#
+# Внутри Lima-VM ядро Linux x86_64 настоящее, поэтому wine стартует CacheSim
+# нативно. Сам docker-compose стек — тот же самый, никаких отдельных
+# конфигов не нужно.
+
+arch: "x86_64"
+
+images:
+  - location: "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
+    arch: "x86_64"
+
+cpus: 4
+memory: "8GiB"
+disk: "40GiB"
+
+# Монтируем корень проекта внутрь VM как writable, чтобы `docker compose up`
+# собирал образы прямо из исходников хоста.
+mounts:
+  - location: "/Users/valerijpetrov/Documents/диплом/diploma-fix"
+    writable: true
+
+# cloud-init: ставим Docker Engine + Compose plugin и добавляем пользователя
+# `lima` в группу `docker`, чтобы можно было сразу запускать `docker compose`
+# без sudo. После lima-up может потребоваться повторный `limactl shell`,
+# чтобы подхватилась группа.
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y ca-certificates curl gnupg lsb-release
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo \
+        "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+        $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      usermod -aG docker lima
+      systemctl enable --now docker

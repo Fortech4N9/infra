@@ -1,0 +1,382 @@
+# ВАЖНО: проект изолирован от исходного `diplom-*`. Все контейнеры/сеть/тома
+# имеют префикс `diploma-fix-` и порты по умолчанию сдвинуты, чтобы можно было
+# поднять обе системы на одной машине одновременно.
+name: diploma-fix
+
+services:
+  # ======================== INFRASTRUCTURE ========================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: diploma-fix-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CORE_DB_NAME: ${CORE_DB_NAME}
+      ANALYSIS_DB_NAME: ${ANALYSIS_DB_NAME}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql
+      - ./postgres/02-core-schema.sql:/docker-entrypoint-initdb.d/02-core-schema.sql
+      - ./postgres/03-analysis-schema.sql:/docker-entrypoint-initdb.d/03-analysis-schema.sql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"${POSTGRES_USER}\" && PGPASSWORD=\"${POSTGRES_PASSWORD}\" psql -h 127.0.0.1 -U \"${POSTGRES_USER}\" -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='${CORE_DB_NAME}'\" | grep -q 1 && PGPASSWORD=\"${POSTGRES_PASSWORD}\" psql -h 127.0.0.1 -U \"${POSTGRES_USER}\" -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='${ANALYSIS_DB_NAME}'\" | grep -q 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      - diploma-fix-net
+
+  # Идемпотентный bootstrap: если volume уже существует, init-databases.sql из docker-entrypoint-initdb.d
+  # не запустится — тогда мы создаём БД здесь. Контейнер закрывается успешно по завершении.
+  postgres-init:
+    image: postgres:16-alpine
+    container_name: diploma-fix-postgres-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      CORE_DB_NAME: ${CORE_DB_NAME}
+      ANALYSIS_DB_NAME: ${ANALYSIS_DB_NAME}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        psql -h postgres -U "$$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$CORE_DB_NAME'" | grep -q 1 \
+          || psql -h postgres -U "$$POSTGRES_USER" -d postgres -c "CREATE DATABASE $$CORE_DB_NAME"
+        psql -h postgres -U "$$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$ANALYSIS_DB_NAME'" | grep -q 1 \
+          || psql -h postgres -U "$$POSTGRES_USER" -d postgres -c "CREATE DATABASE $$ANALYSIS_DB_NAME"
+        echo "[postgres-init] databases ready"
+    restart: "no"
+    networks:
+      - diploma-fix-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: diploma-fix-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - diploma-fix-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: diploma-fix-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      - diploma-fix-net
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: diploma-fix-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: ["/bin/sh", "/init-buckets.sh"]
+    volumes:
+      - ./minio/init-buckets.sh:/init-buckets.sh
+    restart: "no"
+    networks:
+      - diploma-fix-net
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: diploma-fix-clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+    ports:
+      - "${CLICKHOUSE_PORT}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT}:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      - diploma-fix-net
+
+  # Идемпотентно создаёт БД и таблицы ClickHouse — нужно если volume уже есть
+  # (тогда docker-entrypoint-initdb.d не сработает повторно).
+  clickhouse-init:
+    image: clickhouse/clickhouse-server:24-alpine
+    container_name: diploma-fix-clickhouse-init
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        clickhouse-client --host clickhouse --user "$$CLICKHOUSE_USER" --password "$$CLICKHOUSE_PASSWORD" \
+          --queries-file /init.sql
+        echo "[clickhouse-init] schema ready"
+    volumes:
+      - ./clickhouse/init.sql:/init.sql
+    restart: "no"
+    networks:
+      - diploma-fix-net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: diploma-fix-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      # Оба пути обязательны: data — снимки, log — транзакции. Без log
+      # после restart zookeeper генерирует новый clusterID, а kafka в
+      # своём volume хранит старый — и падает с InconsistentClusterIdException.
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - diploma-fix-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: diploma-fix-kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:${KAFKA_BROKER_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "${KAFKA_BROKER_PORT}:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:29092"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    networks:
+      - diploma-fix-net
+
+  # ======================== API GATEWAY ========================
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: diploma-fix-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - core-api
+      - analysis-api
+      - frontend
+    networks:
+      - diploma-fix-net
+
+  # ======================== FRONTEND ========================
+
+  frontend:
+    build:
+      context: ../diploma-frontend
+      dockerfile: Dockerfile
+    container_name: diploma-fix-frontend
+    restart: unless-stopped
+    networks:
+      - diploma-fix-net
+
+  # ======================== SERVICES ========================
+
+  core-api:
+    build:
+      context: ../core-api-service
+      dockerfile: Dockerfile
+    container_name: diploma-fix-core-api
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${CORE_DB_NAME}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SERVER_PORT: ${CORE_API_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - diploma-fix-net
+
+  analysis-api:
+    build:
+      context: ../analysis-api-service
+      dockerfile: Dockerfile
+    container_name: diploma-fix-analysis-api
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${ANALYSIS_DB_NAME}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: "false"
+      KAFKA_BROKERS: kafka:29092
+      CLICKHOUSE_ADDR: clickhouse:9000
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+      SERVER_PORT: ${ANALYSIS_API_PORT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+      clickhouse-init:
+        condition: service_completed_successfully
+    networks:
+      - diploma-fix-net
+
+  worker-static:
+    build:
+      context: ..
+      dockerfile: worker-static-analyzer/Dockerfile
+    image: diploma-fix-worker-static:latest
+    container_name: diploma-fix-worker-static
+    # Базовый образ keplar01/static-analyzer:latest собран под linux/amd64.
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKERS: kafka:29092
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: "false"
+      CLICKHOUSE_ADDR: clickhouse:9000
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
+      clickhouse-init:
+        condition: service_completed_successfully
+    networks:
+      - diploma-fix-net
+
+  worker-cache:
+    build:
+      context: ..
+      dockerfile: worker-cache-interpreter/Dockerfile
+    image: diploma-fix-worker-cache:latest
+    container_name: diploma-fix-worker-cache
+    # cats — native x86_64 Linux binary. Образ всегда linux/amd64.
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      INTERPRETER_BINARY: /usr/local/bin/cats
+      KAFKA_BROKERS: kafka:29092
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: "false"
+      CLICKHOUSE_ADDR: clickhouse:9000
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+    depends_on:
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    networks:
+      - diploma-fix-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  clickhouse_data:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
+
+networks:
+  diploma-fix-net:
+    driver: bridge

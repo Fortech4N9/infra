@@ -1,0 +1,5 @@
+# Скрипты и SQL инфраструктуры — только LF (иначе Alpine/sh в Docker падает на \r).
+*.sh text eol=lf
+postgres/*.sql text eol=lf
+clickhouse/*.sql text eol=lf
+Makefile text eol=lf
