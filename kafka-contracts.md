@@ -86,7 +86,8 @@
 {
   "task_id": "550e8400-e29b-41d4-a716-446655440000",
   "project_id": "11111111-2222-3333-4444-555555555555",
-  "file_s3_path": "source-codes/project-uuid/file-uuid.c"
+  "file_s3_path": "source-codes/project-uuid/file-uuid.c",
+  "cache_config_s3_path": "source-codes/cache-configs/<user-uuid>/<config-uuid>.json"
 }
 ```
 
@@ -95,6 +96,7 @@
 | `task_id` | UUID (string) | ID задачи (тот же, что и для static) |
 | `project_id` | UUID (string) | ID проекта |
 | `file_s3_path` | string | Путь к исходному файлу в MinIO |
+| `cache_config_s3_path` | string | Путь к конфигу симулятора кэша в MinIO (`bucket/key`), выбранному пользователем при старте анализа |
 
 ---
 
