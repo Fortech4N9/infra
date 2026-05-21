@@ -52,7 +52,7 @@ analysisApi:
   enabled: true
   image:
     repository: analysis-api
-    tag: latest
+    tag: a77dfc12a24790c660c51f550f2c708f8cc713a7
   replicaCount: 1
   port: 8082
   resources:
