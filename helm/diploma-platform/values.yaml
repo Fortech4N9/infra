@@ -110,7 +110,7 @@ kafka:
     imagePullSecrets: []
   image:
     registry: docker.io
-    repository: bitnami/kafka
+    repository: bitnamilegacy/kafka
   kraft:
     enabled: true
   zookeeper:
@@ -136,7 +136,7 @@ minio:
     imagePullSecrets: []
   image:
     registry: docker.io
-    repository: bitnami/minio
+    repository: bitnamilegacy/minio
   mode: standalone
   auth:
     existingSecret: diploma-platform-secrets
