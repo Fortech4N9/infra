@@ -1,0 +1,44 @@
+{{- if and .Values.initJobs.minio.enabled .Values.minio.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "diploma-platform.fullname" . }}-minio-init
+  labels:
+    {{- include "diploma-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: init-minio
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: minio-init
+          image: minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              until mc alias set local http://minio:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"; do
+                echo "Waiting for MinIO..."
+                sleep 3
+              done
+              mc mb --ignore-existing local/source-codes
+              mc mb --ignore-existing local/analysis-artifacts
+              echo "[minio-init] buckets ready"
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: MINIO_ROOT_PASSWORD
+{{- end }}

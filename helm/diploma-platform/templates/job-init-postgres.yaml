@@ -1,0 +1,53 @@
+{{- if .Values.initJobs.postgres.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "diploma-platform.fullname" . }}-postgres-init
+  labels:
+    {{- include "diploma-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: init-postgres
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "3"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: postgres-init
+          image: postgres:16-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              export PGPASSWORD="${POSTGRES_PASSWORD}"
+              psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${CORE_DB}" -f /scripts/02-core-schema.sql
+              psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${ANALYSIS_DB}" -f /scripts/03-analysis-schema.sql
+              echo "[postgres-init] schemas ready"
+          env:
+            - name: POSTGRES_HOST
+              value: {{ .Values.external.postgres.host | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.external.postgres.port | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.external.postgres.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            - name: CORE_DB
+              value: {{ .Values.external.postgres.coreDb | quote }}
+            - name: ANALYSIS_DB
+              value: {{ .Values.external.postgres.analysisDb | quote }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "diploma-platform.fullname" . }}-init-scripts
+{{- end }}

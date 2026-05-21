@@ -1,0 +1,71 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "diploma-platform.fullname" . }}
+  annotations:
+    {{- range $k, $v := .Values.ingress.annotations }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.global.domain }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.global.domain }}
+      http:
+        paths:
+          - path: /api/v1/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: core-api
+                port:
+                  number: {{ .Values.coreApi.port }}
+          - path: /api/v1/projects
+            pathType: Prefix
+            backend:
+              service:
+                name: core-api
+                port:
+                  number: {{ .Values.coreApi.port }}
+          - path: /api/v1/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: core-api
+                port:
+                  number: {{ .Values.coreApi.port }}
+          - path: /api/v1/internal
+            pathType: Prefix
+            backend:
+              service:
+                name: core-api
+                port:
+                  number: {{ .Values.coreApi.port }}
+          - path: /api/v1/analysis
+            pathType: Prefix
+            backend:
+              service:
+                name: analysis-api
+                port:
+                  number: {{ .Values.analysisApi.port }}
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service:
+                name: analysis-api
+                port:
+                  number: {{ .Values.analysisApi.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: {{ .Values.frontend.port }}
+{{- end }}

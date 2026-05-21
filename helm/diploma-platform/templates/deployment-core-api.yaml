@@ -1,0 +1,77 @@
+{{- if .Values.coreApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-api
+  labels:
+    app.kubernetes.io/name: core-api
+    {{- include "diploma-platform.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.coreApi.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: core-api
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: core-api
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      {{- include "diploma-platform.imagePullSecrets" . | nindent 6 }}
+      containers:
+        - name: core-api
+          image: {{ include "diploma-platform.image" (dict "Values" .Values "repository" .Values.coreApi.image.repository "tag" .Values.coreApi.image.tag) }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.coreApi.port }}
+          env:
+            - name: DB_HOST
+              value: {{ .Values.external.postgres.host | quote }}
+            - name: DB_PORT
+              value: {{ .Values.external.postgres.port | quote }}
+            - name: DB_USER
+              value: {{ .Values.external.postgres.user | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: POSTGRES_PASSWORD
+            - name: DB_NAME
+              value: {{ .Values.external.postgres.coreDb | quote }}
+            - name: REDIS_ADDR
+              value: {{ printf "%s:%v" .Values.external.redis.host .Values.external.redis.port | quote }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: REDIS_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: JWT_SECRET
+            - name: SERVER_PORT
+              value: {{ .Values.coreApi.port | quote }}
+          resources:
+            {{- toYaml .Values.coreApi.resources | nindent 12 }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.coreApi.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-api
+  labels:
+    app.kubernetes.io/name: core-api
+spec:
+  selector:
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - port: {{ .Values.coreApi.port }}
+      targetPort: {{ .Values.coreApi.port }}
+{{- end }}

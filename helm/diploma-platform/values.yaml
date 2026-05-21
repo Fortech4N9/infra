@@ -1,0 +1,140 @@
+# --- Global ---
+global:
+  domain: code-analysis-project.ru
+  imageRegistry: cr.yandex/REPLACE_REGISTRY_ID
+  imagePullPolicy: IfNotPresent
+  namespace: diploma
+  # Создайте secret ycr-pull-secret (см. DEPLOY.md), если реестр приватный
+  imagePullSecrets:
+    - name: ycr-pull-secret
+
+# Секрет создаётся вручную в кластере (см. DEPLOY.md). В Git — только имя.
+secrets:
+  existingSecret: diploma-platform-secrets
+
+# Managed DB из Terraform (подставьте после terraform output)
+external:
+  postgres:
+    host: REPLACE_PG_FQDN
+    port: 6432
+    user: diplom
+    coreDb: core_db
+    analysisDb: analysis_db
+  redis:
+    host: REPLACE_REDIS_FQDN
+    port: 6379
+  clickhouse:
+    host: REPLACE_CH_FQDN
+    httpPort: 8123
+    nativePort: 9000
+    user: default
+    database: analysis_metrics
+
+# --- Ingress (NGINX Ingress Controller должен быть установлен отдельно) ---
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  tls:
+    enabled: true
+    secretName: diploma-platform-tls
+
+# --- Образы (теги обновляет GitHub Actions через yq) ---
+coreApi:
+  enabled: true
+  image:
+    repository: core-api
+    tag: latest
+  replicaCount: 1
+  port: 8081
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+analysisApi:
+  enabled: true
+  image:
+    repository: analysis-api
+    tag: latest
+  replicaCount: 1
+  port: 8082
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+frontend:
+  enabled: true
+  image:
+    repository: frontend
+    tag: latest
+  replicaCount: 1
+  port: 80
+  resources:
+    requests: { cpu: 50m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+workerStatic:
+  enabled: true
+  image:
+    repository: worker-static
+    tag: latest
+  replicaCount: 1
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  nodeSelector:
+    kubernetes.io/arch: amd64
+
+workerCache:
+  enabled: true
+  image:
+    repository: worker-cache
+    tag: latest
+  replicaCount: 1
+  interpreterBinary: /usr/local/bin/cats
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  nodeSelector:
+    kubernetes.io/arch: amd64
+
+# --- Init hooks ---
+initJobs:
+  clickhouse:
+    enabled: true
+  minio:
+    enabled: true
+  postgres:
+    enabled: true
+
+# --- Subchart: Kafka (in-cluster) ---
+kafka:
+  enabled: true
+  fullnameOverride: kafka
+  zookeeper:
+    enabled: true
+  listeners:
+    client:
+      protocol: PLAINTEXT
+  extraConfig: |
+    auto.create.topics.enable=true
+  persistence:
+    enabled: true
+    size: 8Gi
+
+# --- Subchart: MinIO (in-cluster) ---
+minio:
+  enabled: true
+  fullnameOverride: minio
+  mode: standalone
+  auth:
+    existingSecret: diploma-platform-secrets
+    existingSecretKeys:
+      rootUser: MINIO_ROOT_USER
+      rootPassword: MINIO_ROOT_PASSWORD
+  persistence:
+    enabled: true
+    size: 20Gi
+  defaultBuckets: ""

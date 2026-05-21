@@ -1,2 +1,16 @@
 .env
+secrets/production.env
+secrets/*.local.env
 *.log
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/terraform.tfvars
+terraform/*.auto.tfvars
+yc-ci-key.json
+outputs.json
+
+# Helm
+helm/diploma-platform/charts/
+helm/diploma-platform/Chart.lock

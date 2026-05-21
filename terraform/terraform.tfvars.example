@@ -1,0 +1,16 @@
+folder_id = "b1gxxxxxxxxxxxxxxxx"
+cloud_id  = "b1gxxxxxxxxxxxxxxxx"
+
+environment  = "production"
+project_name = "diploma"
+
+# Пароли — задавайте через env: TF_VAR_postgres_password=...
+# postgres_password   = "CHANGE_ME"
+# redis_password      = "CHANGE_ME"
+# clickhouse_password = "CHANGE_ME"
+
+k8s_node_min     = 2
+k8s_node_max     = 5
+k8s_node_initial = 2
+
+# ssh_public_key = "ssh-ed25519 AAAA... user@host"

@@ -1,0 +1,52 @@
+{{- if .Values.initJobs.clickhouse.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "diploma-platform.fullname" . }}-clickhouse-init
+  labels:
+    {{- include "diploma-platform.labels" . | nindent 4 }}
+    app.kubernetes.io/component: init-clickhouse
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: clickhouse-init
+          image: clickhouse/clickhouse-server:24-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              clickhouse-client \
+                --host "${CLICKHOUSE_HOST}" \
+                --port "${CLICKHOUSE_PORT}" \
+                --user "${CLICKHOUSE_USER}" \
+                --password "${CLICKHOUSE_PASSWORD}" \
+                --multiquery < /scripts/clickhouse-init.sql
+              echo "[clickhouse-init] schema ready"
+          env:
+            - name: CLICKHOUSE_HOST
+              value: {{ .Values.external.clickhouse.host | quote }}
+            - name: CLICKHOUSE_PORT
+              value: {{ .Values.external.clickhouse.nativePort | quote }}
+            - name: CLICKHOUSE_USER
+              value: {{ .Values.external.clickhouse.user | quote }}
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.existingSecret }}
+                  key: CLICKHOUSE_PASSWORD
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "diploma-platform.fullname" . }}-init-scripts
+{{- end }}

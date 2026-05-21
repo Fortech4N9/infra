@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: diploma-infrastructure
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Fortech4N9/infra.git
+    targetRevision: main
+    path: argocd/infrastructure
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
