@@ -103,6 +103,12 @@ initJobs:
 kafka:
   enabled: true
   fullnameOverride: kafka
+  global:
+    imageRegistry: ""
+    imagePullSecrets: []
+  image:
+    registry: docker.io
+    repository: bitnami/kafka
   kraft:
     enabled: true
   zookeeper:
@@ -123,6 +129,12 @@ kafka:
 minio:
   enabled: true
   fullnameOverride: minio
+  global:
+    imageRegistry: ""
+    imagePullSecrets: []
+  image:
+    registry: docker.io
+    repository: bitnami/minio
   mode: standalone
   auth:
     existingSecret: diploma-platform-secrets
