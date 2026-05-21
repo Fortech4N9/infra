@@ -31,7 +31,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{- define "diploma-platform.image" -}}
-{{- $reg := .Values.global.imageRegistry -}}
+{{- $reg := .Values.platform.imageRegistry -}}
 {{- $repo := .repository -}}
 {{- $tag := .tag | default "latest" -}}
 {{- if $reg -}}
@@ -50,7 +50,7 @@ minio:9000
 {{- end }}
 
 {{- define "diploma-platform.imagePullSecrets" -}}
-{{- with .Values.global.imagePullSecrets }}
+{{- with .Values.platform.imagePullSecrets }}
 imagePullSecrets:
   {{- toYaml . | nindent 2 }}
 {{- end }}

@@ -1,10 +1,12 @@
 # --- Global ---
 global:
   domain: code-analysis-project.ru
-  imageRegistry: cr.yandex/crpr1nbrl4jkl9erl1rd
   imagePullPolicy: IfNotPresent
   namespace: diploma
-  # Создайте secret ycr-pull-secret (см. DEPLOY.md), если реестр приватный
+
+# Только для наших сервисов (не для Bitnami subcharts)
+platform:
+  imageRegistry: cr.yandex/crpr1nbrl4jkl9erl1rd
   imagePullSecrets:
     - name: ycr-pull-secret
 # Секрет создаётся вручную в кластере (см. DEPLOY.md). В Git — только имя.
