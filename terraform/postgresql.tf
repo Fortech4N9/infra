@@ -26,10 +26,12 @@ resource "yandex_mdb_postgresql_cluster" "main" {
 
   database {
     name = "core_db"
+    owner = "diplom"
   }
 
   database {
     name = "analysis_db"
+    owner = "diplom"
   }
 
   user {

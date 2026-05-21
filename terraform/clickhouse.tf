@@ -3,18 +3,11 @@ resource "yandex_mdb_clickhouse_cluster" "main" {
   environment = "PRODUCTION"
   network_id  = yandex_vpc_network.main.id
 
-  config {
-    version = "24.3"
+  clickhouse {
     resources {
       resource_preset_id = var.clickhouse_preset
       disk_type_id       = "network-ssd"
       disk_size          = var.db_disk_gb
-    }
-
-    clickhouse {
-      config {
-        log_level = "INFORMATION"
-      }
     }
   }
 
@@ -30,12 +23,18 @@ resource "yandex_mdb_clickhouse_cluster" "main" {
     subnet_id = yandex_vpc_subnet.b.id
   }
 
+  host {
+    type      = "CLICKHOUSE"
+    zone      = var.zone_d
+    subnet_id = yandex_vpc_subnet.d.id
+  }
+
   database {
     name = "analysis_metrics"
   }
 
   user {
-    name     = "default"
+    name     = var.clickhouse_user
     password = var.clickhouse_password
 
     permission {

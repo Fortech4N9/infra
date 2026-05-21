@@ -1,7 +1,7 @@
 # --- Global ---
 global:
   domain: code-analysis-project.ru
-  imageRegistry: cr.yandex/REPLACE_REGISTRY_ID
+  imageRegistry: cr.yandex/crpr1nbrl4jkl9erl1rd
   imagePullPolicy: IfNotPresent
   namespace: diploma
   # Создайте secret ycr-pull-secret (см. DEPLOY.md), если реестр приватный
@@ -15,19 +15,19 @@ secrets:
 # Managed DB из Terraform (подставьте после terraform output)
 external:
   postgres:
-    host: REPLACE_PG_FQDN
+    host: rc1a-7u696s7hkc14tl0q.mdb.yandexcloud.net
     port: 6432
     user: diplom
     coreDb: core_db
     analysisDb: analysis_db
   redis:
-    host: REPLACE_REDIS_FQDN
+    host: rc1a-uaoh7tt2auqanlnd.mdb.yandexcloud.net
     port: 6379
   clickhouse:
-    host: REPLACE_CH_FQDN
+    host: rc1a-pqhqh70oq1v9h41p.mdb.yandexcloud.net
     httpPort: 8123
     nativePort: 9000
-    user: default
+    user: diplom_ch
     database: analysis_metrics
 
 # --- Ingress (NGINX Ingress Controller должен быть установлен отдельно) ---
@@ -113,8 +113,14 @@ initJobs:
 kafka:
   enabled: true
   fullnameOverride: kafka
-  zookeeper:
+  kraft:
     enabled: true
+  zookeeper:
+    enabled: false
+  controller:
+    replicaCount: 1
+  broker:
+    replicaCount: 0
   listeners:
     client:
       protocol: PLAINTEXT

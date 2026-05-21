@@ -32,6 +32,11 @@ variable "zone_b" {
   default = "ru-central1-b"
 }
 
+variable "zone_d" {
+  type    = string
+  default = "ru-central1-d"
+}
+
 variable "vpc_cidr" {
   type    = string
   default = "10.128.0.0/16"
@@ -47,11 +52,21 @@ variable "subnet_b_cidr" {
   default = "10.128.2.0/24"
 }
 
+variable "subnet_d_cidr" {
+  type    = string
+  default = "10.128.3.0/24"
+}
+
+variable "clickhouse_user" {
+  type    = string
+  default = "diplom_ch"
+}
+
 # --- Kubernetes ---
 
 variable "k8s_version" {
   type    = string
-  default = "1.29"
+  default = "1.31"
 }
 
 variable "k8s_node_platform_id" {
@@ -94,6 +109,18 @@ variable "k8s_public_ip" {
   description = "NAT для мастера/узлов (нужен для публичного Ingress)"
   type        = bool
   default     = true
+}
+
+variable "k8s_cluster_service_account_id" {
+  description = "SA для control plane (должен иметь k8s.clusters.agent)"
+  type        = string
+  default     = "ajed4bmkcutrv3ch6k5d" # code-analysis-project
+}
+
+variable "k8s_node_service_account_id" {
+  description = "SA для worker nodes"
+  type        = string
+  default     = "ajed4bmkcutrv3ch6k5d"
 }
 
 # --- Managed DB (пароли только через TF_VAR_* или -var, не коммитить) ---

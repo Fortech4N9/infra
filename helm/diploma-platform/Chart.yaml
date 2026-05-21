@@ -8,9 +8,9 @@ appVersion: "1.0.0"
 dependencies:
   - name: kafka
     version: 29.3.14
-    repository: https://charts.bitnami.com/bitnami
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: kafka.enabled
   - name: minio
     version: 14.8.5
-    repository: https://charts.bitnami.com/bitnami
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: minio.enabled

@@ -17,6 +17,13 @@ resource "yandex_vpc_subnet" "b" {
   v4_cidr_blocks = [var.subnet_b_cidr]
 }
 
+resource "yandex_vpc_subnet" "d" {
+  name           = "${var.project_name}-subnet-d"
+  zone           = var.zone_d
+  network_id     = yandex_vpc_network.main.id
+  v4_cidr_blocks = [var.subnet_d_cidr]
+}
+
 resource "yandex_vpc_security_group" "k8s_nodes" {
   name       = "${var.project_name}-k8s-nodes-sg"
   network_id = yandex_vpc_network.main.id

@@ -4,13 +4,14 @@ resource "yandex_mdb_redis_cluster" "main" {
   network_id  = yandex_vpc_network.main.id
 
   config {
-    version = "7.2"
+    version = "7.2-valkey"
     password = var.redis_password
-    resources {
-      resource_preset_id = var.redis_preset
-      disk_type_id       = "network-ssd"
-      disk_size          = 16
-    }
+  }
+
+  resources {
+    resource_preset_id = var.redis_preset
+    disk_type_id       = "network-ssd"
+    disk_size          = 16
   }
 
   host {

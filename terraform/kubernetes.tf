@@ -9,55 +9,38 @@ resource "yandex_iam_service_account" "k8s_nodes" {
   description = "SA for ${var.project_name} node group"
 }
 
-resource "yandex_resourcemanager_folder_iam_member" "k8s_cluster_agent" {
+# --- ВЫДАЧА ПРАВ СЕРВИСНЫМ АККАУНТАМ ---
+
+# Даем полные права (editor) кластеру, чтобы он мог сам создавать балансировщики и IP-адреса
+resource "yandex_resourcemanager_folder_iam_member" "k8s_cluster_editor" {
   folder_id = var.folder_id
-  role      = "k8s.clusters.agent"
+  role      = "editor"
   member    = "serviceAccount:${yandex_iam_service_account.k8s_cluster.id}"
 }
 
-resource "yandex_resourcemanager_folder_iam_member" "k8s_nodes_agent" {
+# Даем права (editor) нодам, чтобы они могли качать образы из YCR и писать логи
+resource "yandex_resourcemanager_folder_iam_member" "k8s_nodes_editor" {
   folder_id = var.folder_id
-  role      = "k8s.clusters.agent"
+  role      = "editor"
   member    = "serviceAccount:${yandex_iam_service_account.k8s_nodes.id}"
 }
 
-resource "yandex_resourcemanager_folder_iam_member" "k8s_vpc_public_admin" {
-  folder_id = var.folder_id
-  role      = "vpc.publicAdmin"
-  member    = "serviceAccount:${yandex_iam_service_account.k8s_nodes.id}"
-}
-
-resource "yandex_resourcemanager_folder_iam_member" "k8s_load_balancer_admin" {
-  folder_id = var.folder_id
-  role      = "load-balancer.admin"
-  member    = "serviceAccount:${yandex_iam_service_account.k8s_nodes.id}"
-}
-
-resource "yandex_resourcemanager_folder_iam_member" "k8s_container_registry_puller" {
-  folder_id = var.folder_id
-  role      = "container-registry.images.puller"
-  member    = "serviceAccount:${yandex_iam_service_account.k8s_nodes.id}"
-}
+# --- СОЗДАНИЕ КЛАСТЕРА ---
 
 resource "yandex_kubernetes_cluster" "main" {
-  name        = "${var.project_name}-k8s"
-  description = "Regional K8s for cache-analysis platform (${var.environment})"
+  name        = "${var.project_name}-k8s-v2"
+  description = "Zonal K8s (amd64) for cache-analysis platform (${var.environment})"
 
   network_id = yandex_vpc_network.main.id
 
+  # Безопасные IP-диапазоны, которые мы подобрали
+  cluster_ipv4_range = "10.200.0.0/16"
+  service_ipv4_range = "10.201.0.0/16"
+
   master {
-    regional {
-      region = "ru-central1"
-
-      location {
-        zone      = var.zone_a
-        subnet_id = yandex_vpc_subnet.a.id
-      }
-
-      location {
-        zone      = var.zone_b
-        subnet_id = yandex_vpc_subnet.b.id
-      }
+    zonal {
+      zone      = var.zone_a
+      subnet_id = yandex_vpc_subnet.a.id
     }
 
     version   = var.k8s_version
@@ -70,7 +53,15 @@ resource "yandex_kubernetes_cluster" "main" {
   node_service_account_id = yandex_iam_service_account.k8s_nodes.id
 
   release_channel = "REGULAR"
+
+  # Ждем, пока Яндекс применит права, прежде чем создавать кластер
+  depends_on = [
+    yandex_resourcemanager_folder_iam_member.k8s_cluster_editor,
+    yandex_resourcemanager_folder_iam_member.k8s_nodes_editor
+  ]
 }
+
+# --- СОЗДАНИЕ УЗЛОВ (ВОРКЕРОВ) ---
 
 resource "yandex_kubernetes_node_group" "workers" {
   name        = "${var.project_name}-workers-amd64"
@@ -79,8 +70,6 @@ resource "yandex_kubernetes_node_group" "workers" {
 
   instance_template {
     platform_id = var.k8s_node_platform_id
-
-    # standard-v3 и аналоги — x86_64. Не используйте ARM-платформы (standard-v3a и т.п.).
 
     resources {
       cores  = var.k8s_node_cores
@@ -118,9 +107,6 @@ resource "yandex_kubernetes_node_group" "workers" {
   allocation_policy {
     location {
       zone = var.zone_a
-    }
-    location {
-      zone = var.zone_b
     }
   }
 

@@ -9,8 +9,11 @@ terraform/*.tfstate*
 terraform/terraform.tfvars
 terraform/*.auto.tfvars
 yc-ci-key.json
+yc-sa-editor-key.json
 outputs.json
-
+terraform.tfvars
+terraform/.terraform.lock.hcl
+k8s-debug/
 # Helm
 helm/diploma-platform/charts/
 helm/diploma-platform/Chart.lock
