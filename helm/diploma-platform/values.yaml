@@ -140,9 +140,8 @@ minio:
   mode: standalone
   auth:
     existingSecret: diploma-platform-secrets
-    existingSecretKeys:
-      rootUser: MINIO_ROOT_USER
-      rootPassword: MINIO_ROOT_PASSWORD
+    rootUserSecretKey: MINIO_ROOT_USER
+    rootPasswordSecretKey: MINIO_ROOT_PASSWORD
   persistence:
     enabled: true
     size: 20Gi
