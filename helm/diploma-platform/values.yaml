@@ -72,7 +72,7 @@ workerStatic:
   enabled: true
   image:
     repository: worker-static
-    tag: latest
+    tag: 2cde0e24d539828980e2ef51b9ef61f1c5c6ca3a
   replicaCount: 1
   resources:
     requests: {cpu: 250m, memory: 256Mi}
