@@ -48,6 +48,21 @@ resource "yandex_vpc_security_group" "k8s_nodes" {
     port           = 80
   }
 
+  ingress {
+    protocol          = "TCP"
+    description       = "NLB health checks (ingress-nginx)"
+    predefined_target = "loadbalancer_healthchecks"
+    port              = 10256
+  }
+
+  ingress {
+    protocol       = "TCP"
+    description    = "NodePort for Ingress LoadBalancer"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    from_port      = 30000
+    to_port        = 32767
+  }
+
   egress {
     protocol       = "ANY"
     description    = "Egress"
