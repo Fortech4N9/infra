@@ -7,11 +7,9 @@ global:
   # Создайте secret ycr-pull-secret (см. DEPLOY.md), если реестр приватный
   imagePullSecrets:
     - name: ycr-pull-secret
-
 # Секрет создаётся вручную в кластере (см. DEPLOY.md). В Git — только имя.
 secrets:
   existingSecret: diploma-platform-secrets
-
 # Managed DB из Terraform (подставьте после terraform output)
 external:
   postgres:
@@ -29,7 +27,6 @@ external:
     nativePort: 9000
     user: diplom_ch
     database: analysis_metrics
-
 # --- Ingress (NGINX Ingress Controller должен быть установлен отдельно) ---
 ingress:
   enabled: true
@@ -40,19 +37,17 @@ ingress:
   tls:
     enabled: true
     secretName: diploma-platform-tls
-
 # --- Образы (теги обновляет GitHub Actions через yq) ---
 coreApi:
   enabled: true
   image:
     repository: core-api
-    tag: latest
+    tag: a5ae368c6808403c05d0e2de0a2202296900da25
   replicaCount: 1
   port: 8081
   resources:
-    requests: { cpu: 100m, memory: 128Mi }
-    limits: { cpu: 500m, memory: 256Mi }
-
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 256Mi}
 analysisApi:
   enabled: true
   image:
@@ -61,9 +56,8 @@ analysisApi:
   replicaCount: 1
   port: 8082
   resources:
-    requests: { cpu: 100m, memory: 128Mi }
-    limits: { cpu: 500m, memory: 512Mi }
-
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 512Mi}
 frontend:
   enabled: true
   image:
@@ -72,9 +66,8 @@ frontend:
   replicaCount: 1
   port: 80
   resources:
-    requests: { cpu: 50m, memory: 64Mi }
-    limits: { cpu: 200m, memory: 128Mi }
-
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 200m, memory: 128Mi}
 workerStatic:
   enabled: true
   image:
@@ -82,11 +75,10 @@ workerStatic:
     tag: latest
   replicaCount: 1
   resources:
-    requests: { cpu: 250m, memory: 256Mi }
-    limits: { cpu: "1", memory: 512Mi }
+    requests: {cpu: 250m, memory: 256Mi}
+    limits: {cpu: "1", memory: 512Mi}
   nodeSelector:
     kubernetes.io/arch: amd64
-
 workerCache:
   enabled: true
   image:
@@ -95,11 +87,10 @@ workerCache:
   replicaCount: 1
   interpreterBinary: /usr/local/bin/cats
   resources:
-    requests: { cpu: 250m, memory: 256Mi }
-    limits: { cpu: "1", memory: 512Mi }
+    requests: {cpu: 250m, memory: 256Mi}
+    limits: {cpu: "1", memory: 512Mi}
   nodeSelector:
     kubernetes.io/arch: amd64
-
 # --- Init hooks ---
 initJobs:
   clickhouse:
@@ -108,7 +99,6 @@ initJobs:
     enabled: true
   postgres:
     enabled: true
-
 # --- Subchart: Kafka (in-cluster) ---
 kafka:
   enabled: true
@@ -129,7 +119,6 @@ kafka:
   persistence:
     enabled: true
     size: 8Gi
-
 # --- Subchart: MinIO (in-cluster) ---
 minio:
   enabled: true
