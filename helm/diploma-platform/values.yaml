@@ -62,7 +62,7 @@ frontend:
   enabled: true
   image:
     repository: frontend
-    tag: latest
+    tag: 0406cc6def27c031b9a202dbc37ed6b2ae6829d5
   replicaCount: 1
   port: 80
   resources:
