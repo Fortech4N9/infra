@@ -83,7 +83,7 @@ workerCache:
   enabled: true
   image:
     repository: worker-cache
-    tag: latest
+    tag: 78d960b4a2e06d7bf9c016e235f0d4d815e84e5f
   replicaCount: 1
   interpreterBinary: /usr/local/bin/cats
   resources:
