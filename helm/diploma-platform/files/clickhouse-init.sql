@@ -35,6 +35,8 @@ ENGINE = MergeTree()
 ORDER BY (task_id, source_line, source_column, base_symbol, access_kind);
 
 CREATE TABLE IF NOT EXISTS analysis_metrics.dynamic_pattern_metrics (
+    task_id             String,
+    sequence_index      UInt32,
     pattern_fingerprint String,
     base_symbol         String,
     access_kind         String,
@@ -49,7 +51,7 @@ CREATE TABLE IF NOT EXISTS analysis_metrics.dynamic_pattern_metrics (
     created_at          DateTime DEFAULT now()
 )
 ENGINE = MergeTree()
-ORDER BY (pattern_fingerprint, base_symbol, access_kind, cache_profile_hash, cache_level, created_at);
+ORDER BY (task_id, sequence_index, pattern_fingerprint, base_symbol, access_kind, cache_profile_hash, cache_level, created_at);
 
 CREATE TABLE IF NOT EXISTS analysis_metrics.variable_sequences (
     task_id                String,

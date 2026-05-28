@@ -1,16 +1,19 @@
-#define N 1024
-
-double a[N];
-double b[N];
-double c[N];
-
 int main() {
-    for (int i = 0; i < N; i++) {
-        a[i] = b[i] + c[i] * 2.0;
+    int i;
+    int j;
+    int sum;
+    int a[1024];
+    int b[1024];
+    int c[1024];
+
+    for (i = 0; i < 1024; i = i + 1) {
+        a[i] = b[i] + c[i] * 2;
     }
-    double sum = 0.0;
-    for (int j = 0; j < N; j++) {
+
+    sum = 0;
+    for (j = 0; j < 1024; j = j + 1) {
         sum = sum + a[j];
     }
-    return (int)sum;
+
+    return sum;
 }
